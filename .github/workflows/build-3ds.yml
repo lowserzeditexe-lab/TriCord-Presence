@@ -25,7 +25,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Install host build dependencies
         run: |
@@ -41,12 +41,32 @@ jobs:
       - name: Install 3DS development packages
         shell: bash
         run: |
+          # CTRPluginFramework is distributed as a prebuilt devkitPro package.
+          # Building CTRPF from its git sources is intentionally avoided because
+          # its libcwav submodule can fail in shallow CI checkouts.
+          if ! grep -Fxq "[thepixellizeross-lib]" /opt/devkitpro/pacman/etc/pacman.conf; then
+            cat >> /opt/devkitpro/pacman/etc/pacman.conf <<'EOF'
+
+[thepixellizeross-lib]
+Server = https://thepixellizeross.gitlab.io/packages/any
+SigLevel = Optional
+EOF
+          fi
+          if ! grep -Fxq "[thepixellizeross-linux]" /opt/devkitpro/pacman/etc/pacman.conf; then
+            cat >> /opt/devkitpro/pacman/etc/pacman.conf <<'EOF'
+
+[thepixellizeross-linux]
+Server = https://thepixellizeross.gitlab.io/packages/x86_64/linux
+SigLevel = Optional
+EOF
+          fi
           dkp-pacman -Sy --noconfirm
           dkp-pacman -S --needed --noconfirm \
             3ds-dev \
             3ds-mbedtls \
             3ds-wslay \
-            3ds-jansson
+            3ds-jansson \
+            libctrpf
 
       - name: Install Python tools
         run: |

@@ -91,3 +91,7 @@ Le workflow `Package release ZIP` permet en plus de produire un ZIP distributabl
 ## Build Windows
 
 Voir `WINDOWS_BUILD.md` pour la procédure Windows. Pour lancer le build directement depuis l'Explorateur, double-cliquer sur `build_windows.bat`.
+
+## GitHub Actions
+
+Le workflow GitHub Actions installe `libctrpf` depuis le dépôt de paquets ThePixellizerOSS et ne reconstruit pas CTRPluginFramework depuis ses sous-modules. Cela évite les échecs CI liés à `libcwav`.

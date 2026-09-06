@@ -23,15 +23,13 @@ export DEVKITPRO="${DEVKITPRO:-$(dirname "$DEVKITARM")}"
 need() { command -v "$1" >/dev/null 2>&1 || { echo "ERREUR: outil '$1' introuvable (lance tools/build_host_tools.sh)" >&2; exit 1; }; }
 need makerom; need 3gxtool; need bannertool; need smdhtool; need 3dsxtool
 
-# libctrpf (CTRPluginFramework) : nécessaire au plugin .3gx
+# libctrpf (CTRPluginFramework) : nécessaire au plugin .3gx.
+# Le projet doit utiliser le paquet précompilé libctrpf fourni par
+# ThePixellizerOSS/devkitPro, plutôt que reconstruire CTRPF et ses sous-modules.
 if [ ! -f "$DEVKITPRO/libctrpf/lib/libctrpf.a" ]; then
-    echo "== [0/3] CTRPluginFramework (libctrpf) =="
-    [ -d "$ROOT/third_party/ctrpf" ] || git clone -q --depth 1 https://gitlab.com/thepixellizeross/ctrpluginframework.git "$ROOT/third_party/ctrpf"
-    # -Werror retiré : gcc 16 (devkitARM r68) signale des warnings inoffensifs
-    sed -i 's/-Werror//' "$ROOT/third_party/ctrpf/Library/Makefile"
-    make -C "$ROOT/third_party/ctrpf/Library" install -j"$(nproc)" >/dev/null
-    # le "make install" de CTRPF n'exporte pas ses headers ctrulib (types.h, csvc.h, plgldr.h...)
-    cp "$ROOT/third_party/ctrpf/Library/include/"*.h "$DEVKITPRO/libctrpf/include/"
+    echo "ERREUR: libctrpf est absent de $DEVKITPRO/libctrpf." >&2
+    echo "Installe le paquet libctrpf (ou vérifie la configuration du dépôt ThePixellizerOSS dans la CI)." >&2
+    exit 1
 fi
 
 echo "== [1/3] Sysmodule (ELF -> CXI via makerom) =="

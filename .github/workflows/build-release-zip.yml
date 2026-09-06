@@ -18,7 +18,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           submodules: recursive
-          fetch-depth: 1
+          fetch-depth: 0
 
       - name: Install host dependencies
         run: |
@@ -28,8 +28,26 @@ jobs:
 
       - name: Install 3DS dependencies
         run: |
+          # Install CTRPluginFramework from the official ThePixellizerOSS package repo
+          # instead of rebuilding it from git submodules.
+          if ! grep -Fxq "[thepixellizeross-lib]" /opt/devkitpro/pacman/etc/pacman.conf; then
+            cat >> /opt/devkitpro/pacman/etc/pacman.conf <<'EOF'
+
+[thepixellizeross-lib]
+Server = https://thepixellizeross.gitlab.io/packages/any
+SigLevel = Optional
+EOF
+          fi
+          if ! grep -Fxq "[thepixellizeross-linux]" /opt/devkitpro/pacman/etc/pacman.conf; then
+            cat >> /opt/devkitpro/pacman/etc/pacman.conf <<'EOF'
+
+[thepixellizeross-linux]
+Server = https://thepixellizeross.gitlab.io/packages/x86_64/linux
+SigLevel = Optional
+EOF
+          fi
           dkp-pacman -Sy --noconfirm
-          dkp-pacman -S --needed --noconfirm 3ds-dev 3ds-mbedtls 3ds-wslay 3ds-jansson
+          dkp-pacman -S --needed --noconfirm 3ds-dev 3ds-mbedtls 3ds-wslay 3ds-jansson libctrpf
           python3 -m pip install --disable-pip-version-check --no-input --break-system-packages qrcode
 
       - name: Build
