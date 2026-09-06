@@ -1,0 +1,58 @@
+name: Package release ZIP
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitarm
+      options: --user 0
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install host dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential git python3 python3-pip libyaml-cpp-dev ca-certificates zip
+
+      - name: Install 3DS dependencies
+        run: |
+          dkp-pacman -Sy --noconfirm
+          dkp-pacman -S --needed --noconfirm 3ds-dev 3ds-mbedtls 3ds-wslay 3ds-jansson
+          python3 -m pip install --disable-pip-version-check --no-input --break-system-packages qrcode
+
+      - name: Build
+        shell: bash
+        run: |
+          chmod +x tools/build_host_tools.sh build.sh
+          ./tools/build_host_tools.sh
+          source tools/env.sh
+          ./build.sh
+
+      - name: Create distributable ZIP
+        shell: bash
+        run: |
+          mkdir -p release/tricord-presence
+          cp -r dist release/tricord-presence/
+          cp README.md RAPPORT.md WINDOWS_BUILD.md release/tricord-presence/ 2>/dev/null || true
+          cp -r docs release/tricord-presence/docs
+          cd release
+          zip -r ../tricord-presence-3ds-${GITHUB_SHA}.zip tricord-presence
+
+      - name: Upload distributable ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: tricord-presence-release
+          path: tricord-presence-3ds-${{ github.sha }}.zip
+          retention-days: 14

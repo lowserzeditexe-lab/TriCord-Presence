@@ -1,0 +1,94 @@
+name: Build TriCord Presence (3DS)
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ "main" ]
+    paths-ignore:
+      - "**/*.md"
+      - "docs/**"
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build 3DS binaries
+    runs-on: ubuntu-latest
+    container:
+      image: devkitpro/devkitarm
+      options: --user 0
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 1
+
+      - name: Install host build dependencies
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+            build-essential \
+            git \
+            python3 \
+            python3-pip \
+            libyaml-cpp-dev \
+            ca-certificates
+
+      - name: Install 3DS development packages
+        shell: bash
+        run: |
+          dkp-pacman -Sy --noconfirm
+          dkp-pacman -S --needed --noconfirm \
+            3ds-dev \
+            3ds-mbedtls \
+            3ds-wslay \
+            3ds-jansson
+
+      - name: Install Python tools
+        run: |
+          python3 -m pip install --disable-pip-version-check --no-input --break-system-packages qrcode
+
+      - name: Build host packaging tools
+        shell: bash
+        run: |
+          chmod +x tools/build_host_tools.sh build.sh
+          ./tools/build_host_tools.sh
+
+      - name: Build 3DS homebrew
+        shell: bash
+        env:
+          REFRESH_TITLES: "0"
+          REFRESH_CA: "0"
+        run: |
+          source tools/env.sh
+          export PATH="$GITHUB_WORKSPACE/tools/bin:$DEVKITARM/bin:$DEVKITPRO/tools/bin:$PATH"
+          ./build.sh
+
+      - name: Verify expected outputs
+        shell: bash
+        run: |
+          set -e
+          test -f dist/tricord-presence-installer.3dsx
+          test -f dist/tricord-presence-installer.cia
+          test -f dist/tricord_presenced.3gx || test -f dist/tricord_overlay.3gx
+          test -f dist/000401300F000102.cxi
+          ls -lah dist
+
+      - name: Upload compiled artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: tricord-presence-3ds-${{ github.sha }}
+          path: |
+            dist/tricord-presence-installer.3dsx
+            dist/tricord-presence-installer.cia
+            dist/000401300F000102.cxi
+            dist/tricord_overlay.3gx
+            dist/tricord_presenced.3gx
+            dist/titles.txt
+            dist/qr.html
+          if-no-files-found: warn
+          retention-days: 14
